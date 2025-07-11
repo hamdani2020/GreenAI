@@ -16,6 +16,7 @@ from transformers import pipeline
 
 import torchaudio
 from datasets import load_dataset
+import tempfile
 
 # Load environment variables
 load_dotenv()
@@ -223,6 +224,14 @@ def display_conversation_history():
 
 # Streamlit App
 def main():
+    # Initialize session state
+    if 'is_ai_speaking' not in st.session_state:
+        st.session_state['is_ai_speaking'] = False
+    if 'conversation_history' not in st.session_state:
+        st.session_state.conversation_history = []
+    if 'last_ai_response_time' not in st.session_state:
+        st.session_state['last_ai_response_time'] = 0
+
     # Page configuration
     st.set_page_config(
         page_title="🍅🍆GreenAI",
@@ -318,23 +327,37 @@ def main():
                 placeholder="What objects are in this image?",
             )
         with col2:
-            audio_input = st.file_uploader("🎤 Speak", type=["wav", "mp3"], key="audio_input")
-            if audio_input is not None:
-                # Convert audio to mono, 16kHz if needed
-                waveform, sample_rate = torchaudio.load(audio_input)
-                if sample_rate != 16000:
-                    waveform = torchaudio.functional.resample(waveform, sample_rate, 16000)
-                if waveform.shape[0] > 1:
-                    waveform = waveform.mean(dim=0, keepdim=True)
-                # Save to temp file for pipeline
-                import tempfile
-                with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp_wav:
-                    torchaudio.save(tmp_wav.name, waveform, 16000)
-                    transcription = stt_pipeline(tmp_wav.name)["text"]
-                st.success(f"Transcribed: {transcription}")
-                # Optionally auto-fill chat input
-                if not question:
-                    question = transcription
+            st.markdown("### 🎤 Voice Input")
+            
+            # More aggressive approach to prevent feedback loops
+            import time
+            current_time = time.time()
+            
+            # Check if AI recently spoke (within last 10 seconds)
+            ai_recently_spoke = (current_time - st.session_state.get('last_ai_response_time', 0)) < 10
+            
+            if st.session_state.get('is_ai_speaking', False) or ai_recently_spoke:
+                st.info("🎵 AI is speaking or recently spoke... Please wait before recording.")
+                if st.button("🔄 Reset Microphone", key="reset_mic"):
+                    st.session_state['is_ai_speaking'] = False
+                    st.session_state['last_ai_response_time'] = 0
+                    st.rerun()
+            else:
+                st.markdown("Click the microphone to record your question:")
+                audio_input = st.audio_input("🎤 Click to record", key="voice_recorder")
+                
+                transcription = None
+                if audio_input is not None:
+                    # Convert audio input to bytes for processing
+                    audio_bytes = audio_input.getvalue()
+                    with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp_wav:
+                        tmp_wav.write(audio_bytes)
+                        tmp_wav.flush()
+                        transcription = stt_pipeline(tmp_wav.name)["text"]
+                    st.success(f"🎵 **Transcribed:** {transcription}")
+                    os.unlink(tmp_wav.name)
+                    if not question:
+                        question = transcription
 
         with conversation_container:
             for message in st.session_state.conversation_history:
@@ -377,6 +400,11 @@ def main():
                     {"role": "user", "content": question}
                 )
 
+                # Set AI speaking state and timestamp to prevent audio input feedback
+                st.session_state['is_ai_speaking'] = True
+                import time
+                st.session_state['last_ai_response_time'] = time.time()
+
                 response = send_gemini_request(
                     api_key=GEMINI_API_KEY,
                     prompt=full_prompt,
@@ -389,6 +417,9 @@ def main():
                     {"role": "assistant", "content": response}
                 )
 
+                # Clear AI speaking state after response
+                st.session_state['is_ai_speaking'] = False
+
                 # Update parent message ID for context tracking
                 # st.session_state.parent_message_id = str(uuid.uuid4())
 
@@ -400,6 +431,8 @@ def main():
                 st.rerun()
 
             except Exception as e:
+                # Clear AI speaking state on error too
+                st.session_state['is_ai_speaking'] = False
                 st.error(f"An error occured: {str(e)}")
 
         # for message in st.session_state.conversation_history:
