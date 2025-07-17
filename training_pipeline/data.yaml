@@ -4,10 +4,3 @@ test: ../test/images
 
 nc: 20
 names: ['chilli antracnose', 'chilli bacterial leaf spot', 'chilli mosaic leaf virus', 'eggplant cercospora leaf spot', 'eggplant colorado potato beetle', 'eggplant fruit rot', 'eggplant fuit rot', 'eggplant healthy fruit', 'eggplant healthy leaf', 'healthy chilli', 'healthy chilli leaf', 'potato alternaria solani leaf', 'potato common scab fruit', 'potato healthy fruit', 'potato healthy leaf', 'potato pythopthora infestans leaf', 'tomato antracnose', 'tomato bacterial spot', 'tomato healthy', 'tomato late blight leaf']
-
-roboflow:
-  workspace: crop-d
-  project: diseases-tb0lp
-  version: 5
-  license: CC BY 4.0
-  url: https://universe.roboflow.com/crop-d/diseases-tb0lp/dataset/5
