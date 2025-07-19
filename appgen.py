@@ -327,15 +327,15 @@ def main():
                 placeholder="What objects are in this image?",
             )
         with col2:
-            st.markdown("### 🎤 Voice Input")
-            
+            st.markdown("")
+
             # More aggressive approach to prevent feedback loops
             import time
             current_time = time.time()
-            
+
             # Check if AI recently spoke (within last 10 seconds)
             ai_recently_spoke = (current_time - st.session_state.get('last_ai_response_time', 0)) < 10
-            
+
             if st.session_state.get('is_ai_speaking', False) or ai_recently_spoke:
                 st.info("🎵 AI is speaking or recently spoke... Please wait before recording.")
                 if st.button("🔄 Reset Microphone", key="reset_mic"):
@@ -343,9 +343,8 @@ def main():
                     st.session_state['last_ai_response_time'] = 0
                     st.rerun()
             else:
-                st.markdown("Click the microphone to record your question:")
                 audio_input = st.audio_input("🎤 Click to record", key="voice_recorder")
-                
+
                 transcription = None
                 if audio_input is not None:
                     # Convert audio input to bytes for processing
